@@ -51,10 +51,10 @@ router.post("/:id", verifyTokenAndAuthorization, async (req, res) => {
 
 router.post("/addAddress/:id", async (req, res) => {
   try {
-    const { address } = req.body;
+    const { address,email } = req.body;
     const cartFound = await Cart.findOneAndUpdate(
       { userId: req.params.id },
-      { $set: { address: address } },
+      { $set: { address: address,email:email } },
       { new: true } // Set {new: true} to return the updated cart
     );
 
@@ -67,10 +67,13 @@ router.post("/addAddress/:id", async (req, res) => {
     const updatedCart = await cartFound.save();
     updatedCart.delivery = delivery; // Set the delivery value
 
-    await updatedCart.save();
-
-    return res.status(200).json({Success:true,message:"Address added to cart"});
-  } catch (error) {
+    const finalUpdated = await updatedCart.save();
+    if(finalUpdated)
+    { 
+      console.log(finalUpdated)
+      return res.status(200).json({Success:true,message:"Address added to cart"});
+    }
+    } catch (error) {
     res.status(400).send(error);
   }
 });

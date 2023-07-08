@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const CartSchema = new mongoose.Schema(
   {
     userId: { type: String, required: true },
+    email:{type:String},
     products:[
         {
             productId:{
@@ -31,6 +32,10 @@ const CartSchema = new mongoose.Schema(
     address:{
       type:Object,
       default:{}
+    },
+    delivery:{
+      type:Number,
+      default:0
     }
   },
   {
