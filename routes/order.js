@@ -1,13 +1,25 @@
 const express = require("express")
 const router = express.Router()
 const Order = require("../models/Order")
+const Cart= require("../models/Cart")
 const { verifyTokenAndAdmin, verifyToken, verifyTokenAndAuthorization } = require("./Middlewares/verifyUser")
  
 //Create a order
 
-router.post("/",verifyToken, async (req,res) => {
-    const newOrder= new Order(req.body)
-    try {
+router.post("/:userId",verifyToken, async (req,res) => {
+  try {
+    const id = req.params.userId 
+    const cart= Cart.findById({id})
+    if (!cart) {
+      return res.status(400).json({ Success: false, Message: "Cart not found" });
+    }
+    const newOrder= new Order({
+      userId:req.params.userId,
+      products:cart.products,
+      status:"Recieved",
+      address:req.body.address
+    })
+    
         const savedOrder = await newOrder.save()
         if(!savedOrder)
         {
