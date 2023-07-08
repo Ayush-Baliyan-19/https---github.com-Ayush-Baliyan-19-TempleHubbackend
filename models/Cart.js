@@ -27,7 +27,11 @@ const CartSchema = new mongoose.Schema(
               default: ""
             }
         }
-    ]
+    ],
+    address:{
+      type:Object,
+      default:{}
+    }
   },
   {
     timestamps: true,

@@ -24,9 +24,10 @@ app.get("/address/cityforPincode", async (req,res)=>{
         })
         const data = await response.json();
         if(!data)
+        console.log(data)
         res.status(400).send("No data found")
     } catch (error) {   
-        res.status(200).send(error)
+        res.status(400).send(error)
     }
 })
 

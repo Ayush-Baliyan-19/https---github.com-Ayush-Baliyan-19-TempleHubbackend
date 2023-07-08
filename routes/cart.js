@@ -49,7 +49,34 @@ router.post("/:id", verifyTokenAndAuthorization, async (req, res) => {
   }
 });
 
-  
+router.post("/addAddress/:id", async (req, res) => {
+  try {
+    const { address } = req.body;
+    const cartFound = await Cart.findOneAndUpdate(
+      { userId: req.params.id },
+      { $set: { address: address } },
+      { new: true } // Set {new: true} to return the updated cart
+    );
+
+    if (!cartFound) {
+      return res.status(404).send("Cart not found");
+    }
+
+    const delivery = address.country === "India" ? 0 : 500;
+
+    const updatedCart = await cartFound.save();
+    updatedCart.delivery = delivery; // Set the delivery value
+
+    await updatedCart.save();
+
+    return res.status(200).json({Success:true,message:"Address added to cart"});
+  } catch (error) {
+    res.status(400).send(error);
+  }
+});
+
+
+
   router.post("/decrease/:id", verifyTokenAndAuthorization, async (req, res) => {
   try {
     const { id } = req.params; // Get the cart ID from the URL params
