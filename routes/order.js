@@ -87,16 +87,19 @@ router.get("/", verifyTokenAndAdmin, async (req, res) => {
   try {
     const { status } = req.query; // Get the status from the query parameters
     let orders;
-
     if (status) {
       // If the status parameter is provided
       orders = await Order.find({ status: status }); // Find orders with the specified status
+      console.log(orders);
     } else {
       // If no status parameter is provided, retrieve all orders
       orders = await Order.find();
+      console.log(orders);
     }
-
-    res.status(200).json({ Success: true, Orders: orders });
+    if(orders)
+    {
+      res.status(200).json({ Success: true, Orders: orders });
+    }
   } catch (error) {
     res.status(400).send(error.message);
   }

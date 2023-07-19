@@ -3,6 +3,7 @@ const router = express.Router()
 const Product = require("../models/Product")
 const { verifyTokenAndAdmin, verifyTokenAndAuthorization } = require("./Middlewares/verifyUser")
 const { body, validationResult } = require("express-validator")
+const multer = require("multer")
 
 //Create a product
 
@@ -17,6 +18,33 @@ router.post("/", verifyTokenAndAdmin, async (req, res) => {
         res.status(200).json({ Success: true, Product: savedProduct })
     } catch (error) {
         res.status(400).json(error)
+    }
+})
+
+//Upload Image
+ 
+const upload = multer({
+    storage: multer.memoryStorage(),
+})
+
+router.post("/images/upload",verifyTokenAndAdmin,upload.single("image"), async (req,res)=>{
+    const file= req.file
+    try {
+        const newFile = {
+            filename: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+            data: file.buffer,
+          };
+        const productFound= await Product.findByIdAndUpdate(req.body.id,{
+            $push:{images:newFile}
+        })
+        if(!productFound){
+            return res.status(400).json({Success:false,Message:"Product was not found"})
+        }
+        res.status(200).json({Success:true,Message:"Image uploaded"})
+    } catch (error) {
+        res.status(500).json({Success:true,Message:error.message})
     }
 })
 
@@ -100,6 +128,7 @@ router.get("/", async (req, res) => {
         let products;
         if (qNew) {
             products = await Product.find().sort({ createdAt: -1 }).limit(limit)
+            console.log(products);
         } else if (qCategories) {
             products = await Product.find({
                 Categories: {

@@ -11,13 +11,12 @@ router.post("/",async (req,res)=>{
             pass:"rgetoefqylnpsagz"
         }
     })
-    const mailOptions={
+    transporter.sendMail({
         from:"ayushbaliyan56@gmail.com",
         to:email,
         subject:subject,
         text:message
-    }
-    transporter.sendMail(mailOptions,(err,data)=>{
+    },(err,data)=>{
         if(err){
             return res.status(400).json({Success:false,Message:"Email not sent"})
         }

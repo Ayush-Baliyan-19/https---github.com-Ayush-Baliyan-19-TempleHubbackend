@@ -36,6 +36,10 @@ const CartSchema = new mongoose.Schema(
     delivery:{
       type:Number,
       default:0
+    },
+    currency:{
+      type:String,
+      required:true
     }
   },
   {
