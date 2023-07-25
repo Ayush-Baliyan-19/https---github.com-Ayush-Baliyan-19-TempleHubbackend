@@ -24,8 +24,7 @@ router.post("/", verifyTokenAndAdmin, async (req, res) => {
 //Upload Image
 
 
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const upload = multer({ dest: "./uploads/" });
   
 
 router.post("/images/upload/:id", verifyTokenAndAdmin, upload.array("images"), async (req, res) => {
