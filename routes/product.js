@@ -4,24 +4,9 @@ const Product = require("../models/Product")
 const { verifyTokenAndAdmin, verifyTokenAndAuthorization } = require("./Middlewares/verifyUser")
 const { body, validationResult } = require("express-validator")
 const multer = require("multer")
-const path = require("path")
-const fs = require("fs")
 const archiver = require("archiver")
-
+const { uploadFile } = require("./s3")
 //Create a product
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, `./images/`)
-    },
-    filename: (req, file, cb) => {
-        cb(null, `${req.params.id}-${file.originalname}`)
-    }
-})
-
-const upload = multer({
-    storage: storage,
-});
 
 router.post("/", verifyTokenAndAdmin, async (req, res) => {
     const newProduct = new Product(req.body)
@@ -38,59 +23,94 @@ router.post("/", verifyTokenAndAdmin, async (req, res) => {
 
 //Upload Image
 
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+  
+
 router.post("/images/upload/:id", verifyTokenAndAdmin, upload.array("images"), async (req, res) => {
     try {
-        console.log(req.files)
-        const newFile = req.files.map((file) => {
-            return file.path.slice(8, file.path.length)
-        })
-        const productFound = await Product.findByIdAndUpdate(req.params.id, {
-            $push: { images: newFile }
-        })
-        if (!productFound) {
-            return res.status(400).json({ Success: false, Message: "Product was not found" })
-        }
-        res.status(200).json({ Success: true, Message: "Image uploaded" })
+      const files = req.files;
+  
+      if (!files || files.length === 0) {
+        return res.status(400).json({ Success: false, Message: "No files were uploaded" });
+      }
+  
+      // Upload each file to S3 and get the file URLs
+      const fileUrls = [];
+      for (const file of files) {
+        const result = await uploadFile(file);
+        fileUrls.push(result.Location); // 'Location' contains the URL of the uploaded file in S3
+      }
+  
+      // Update the product with the new image URLs
+      const productFound = await Product.findByIdAndUpdate(
+        req.params.id,
+        { $set: { images: fileUrls } },
+        { new: true } // Return the updated product document
+      );
+  
+      if (!productFound) {
+        return res.status(400).json({ Success: false, Message: "Product was not found" });
+      }
+  
+      res.status(200).json({ Success: true, Message: "Image(s) uploaded" });
     } catch (error) {
-        res.status(500).json({ Success: true, Message: error.message })
+      res.status(500).json({ Success: false, Message: error.message });
     }
-})
-
-const uploadDir = path.join(__dirname, "..", "images");
+  });
 
 
-router.get("/images/:id", (req, res) => {
+
+
+  router.get("/images/:id", async (req, res) => {
     const requestedId = req.params.id;
-
-    // Read the contents of the "images" directory
-    fs.readdir(uploadDir, (err, files) => {
-        if (err) {
-            return res.status(500).json({ Success: false, Message: "Error reading images directory" });
-        }
-
-        // Filter out the files that match the specified pattern (req.params.id-*)
-        const matchingFiles = files.filter((file) => file.startsWith(`${requestedId}-`));
-
-        if (matchingFiles.length === 0) {
-            return res.status(404).json({ Success: false, Message: "No matching images found" });
-        }
-
-        // Create a new zip archive
-        const archive = archiver("zip");
-
-        // Pipe the zip archive to the response object
-        archive.pipe(res);
-
-        // Add each matching image file to the zip archive
-        matchingFiles.forEach((file) => {
-            const filePath = path.join(uploadDir, file);
-            archive.append(fs.createReadStream(filePath), { name: file });
-        });
-
-        // Finalize the zip archive and send it as the response
-        archive.finalize();
-    });
-});
+  
+    try {
+      // First, fetch the Product document by its productId
+      const productFound = await Product.findById(requestedId);
+  
+      if (!productFound) {
+        return res.status(404).json({ Success: false, Message: "Product not found" });
+      }
+  
+      // Access the GridFSBucket from the global object
+      const bucket = global.gridFSBucket;
+      console.log(productFound.images);
+      // Fetch the image files from GridFS based on the images array in the Product document
+      const matchingFilesCursor = bucket.find({
+        _id: { $in: productFound.images },
+      });
+      // Convert the cursor to an array of file documents
+      const matchingFiles = await matchingFilesCursor.toArray();
+      console.log(matchingFiles);
+  
+      if (matchingFiles.length === 0) {
+        return res.status(404).json({ Success: false, Message: "No matching images found" });
+      }
+  
+      // Create a new zip archive
+      const archive = archiver("zip");
+  
+      // Pipe the zip archive to the response object
+      archive.pipe(res);
+  
+      // Add each matching image file to the zip archive
+      for (const file of matchingFiles) {
+        // Get the file data from GridFS
+        const fileStream = bucket.openDownloadStream(file._id);
+  
+        // Append the file to the zip archive with the original filename
+        archive.append(fileStream, { name: file.filename });
+      }
+  
+      // Finalize the zip archive and send it as the response
+      archive.finalize();
+    } catch (error) {
+      res.status(500).json({ Success: false, Message: "Error retrieving images from GridFS" });
+    }
+  });
+  
 
 
 
