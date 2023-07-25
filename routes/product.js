@@ -4,53 +4,99 @@ const Product = require("../models/Product")
 const { verifyTokenAndAdmin, verifyTokenAndAuthorization } = require("./Middlewares/verifyUser")
 const { body, validationResult } = require("express-validator")
 const multer = require("multer")
+const path = require("path")
+const fs = require("fs")
+const archiver = require("archiver")
 
 //Create a product
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, `./images/`)
+    },
+    filename: (req, file, cb) => {
+        cb(null, `${req.params.id}-${file.originalname}`)
+    }
+})
+
+const upload = multer({
+    storage: storage,
+});
 
 router.post("/", verifyTokenAndAdmin, async (req, res) => {
     const newProduct = new Product(req.body)
     try {
-
         const savedProduct = await newProduct.save()
         if (!savedProduct) {
             return res.status(400).json({ Success: false, Message: "Product was not saved" });
         }
         res.status(200).json({ Success: true, Product: savedProduct })
     } catch (error) {
-        res.status(400).json(error)
+        res.status(400).json(error.message)
     }
 })
 
 //Upload Image
- 
-const upload = multer({
-    storage: multer.memoryStorage(),
-})
 
-router.post("/images/upload",verifyTokenAndAdmin,upload.single("image"), async (req,res)=>{
-    const file= req.file
+router.post("/images/upload/:id", verifyTokenAndAdmin, upload.array("images"), async (req, res) => {
     try {
-        const newFile = {
-            filename: file.originalname,
-            mimetype: file.mimetype,
-            size: file.size,
-            data: file.buffer,
-          };
-        const productFound= await Product.findByIdAndUpdate(req.body.id,{
-            $push:{images:newFile}
+        console.log(req.files)
+        const newFile = req.files.map((file) => {
+            return file.path.slice(8, file.path.length)
         })
-        if(!productFound){
-            return res.status(400).json({Success:false,Message:"Product was not found"})
+        const productFound = await Product.findByIdAndUpdate(req.params.id, {
+            $push: { images: newFile }
+        })
+        if (!productFound) {
+            return res.status(400).json({ Success: false, Message: "Product was not found" })
         }
-        res.status(200).json({Success:true,Message:"Image uploaded"})
+        res.status(200).json({ Success: true, Message: "Image uploaded" })
     } catch (error) {
-        res.status(500).json({Success:true,Message:error.message})
+        res.status(500).json({ Success: true, Message: error.message })
     }
 })
 
+const uploadDir = path.join(__dirname, "..", "images");
+
+
+router.get("/images/:id", (req, res) => {
+    const requestedId = req.params.id;
+
+    // Read the contents of the "images" directory
+    fs.readdir(uploadDir, (err, files) => {
+        if (err) {
+            return res.status(500).json({ Success: false, Message: "Error reading images directory" });
+        }
+
+        // Filter out the files that match the specified pattern (req.params.id-*)
+        const matchingFiles = files.filter((file) => file.startsWith(`${requestedId}-`));
+
+        if (matchingFiles.length === 0) {
+            return res.status(404).json({ Success: false, Message: "No matching images found" });
+        }
+
+        // Create a new zip archive
+        const archive = archiver("zip");
+
+        // Pipe the zip archive to the response object
+        archive.pipe(res);
+
+        // Add each matching image file to the zip archive
+        matchingFiles.forEach((file) => {
+            const filePath = path.join(uploadDir, file);
+            archive.append(fs.createReadStream(filePath), { name: file });
+        });
+
+        // Finalize the zip archive and send it as the response
+        archive.finalize();
+    });
+});
+
+
+
 //Add Review to a product
 
-router.put("/review/:id",[
+router.put("/review/:id", [
     body("rating", "Enter a valid rating").isNumeric(),
     body("name", "Enter a valid name of minimum 3 alphabets").isLength({ min: 3 }),
     body("comment", "Enter valid comment").isLength({ min: 3 }),

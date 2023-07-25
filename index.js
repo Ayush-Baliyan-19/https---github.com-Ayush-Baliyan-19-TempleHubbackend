@@ -2,6 +2,7 @@ const express= require("express")
 const app= express();
 const dotenv=require("dotenv")
 const cors= require("cors")
+const bodyParser= require("body-parser")
 
 const ConnectToDB= require("./DB")
 
@@ -13,23 +14,11 @@ app.use(cors())
 
 app.use(express.json())
 
-app.get("/address/cityforPincode", async (req,res)=>{
-    try {
-        const pincode = req.query.pincode;
-        const response= await fetch(`https://www.postpincode.in/api/getCityName.php?pincode=${pincode}`,{
-            method:"GET",
-            headers:{
-                "Content-Type":"application/json"
-            }
-        })
-        const data = await response.json();
-        if(!data)
-        console.log(data)
-        res.status(400).send("No data found")
-    } catch (error) {   
-        res.status(400).send(error)
-    }
-})
+app.use(bodyParser.json({limit: "100mb"}));
+
+app.use(bodyParser.urlencoded({limit: "100mb",extended:true}));
+
+app.use(express.urlencoded({limit: "10mb",extended:true}));
 
 app.use("/api/auth",require("./routes/auth"))
 app.use("/api/user",require("./routes/user"))

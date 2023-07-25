@@ -8,14 +8,16 @@ const { verifyTokenAndAdmin, verifyToken, verifyTokenAndAuthorization } = requir
 router.post("/:id", verifyTokenAndAuthorization, async (req, res) => {
   try {
     const { id } = req.params; // Get the cart ID from the URL params
-    const { productId, quantity, customization, color, dimension } = req.body; // Get product details from the request body
+    const { productId, quantity, customization, color, dimension, currency } = req.body; // Get product details from the request body
     const cart = await Cart.findOne({ userId: id }); // Find the cart with the provided user ID
     if (!cart) {
       // If the cart doesn't exist, create a new one
       const newCart = {
         userId: id,
         products: [{ productId, quantity, customization, color, dimension }],
+        currency: currency
       };
+      console.log(newCart);
       const createdCart = await Cart.create(newCart);
 
       if (!createdCart) {
@@ -24,7 +26,6 @@ router.post("/:id", verifyTokenAndAuthorization, async (req, res) => {
 
       return res.status(200).json({ success: true, cart: createdCart });
     }
-    console.log(customization)
     const existingProduct = cart.products.find(
       (product) =>
         product.productId === productId &&
