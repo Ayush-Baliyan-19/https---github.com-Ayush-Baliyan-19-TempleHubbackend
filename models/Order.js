@@ -26,6 +26,9 @@ const OrderSchema = new mongoose.Schema(
             }
         ],
         address: { type: Object, required: true },
+        DeliveryService:{
+            type:Object
+        },
         status: { type: String, default: "Recieved" },
     },
     {

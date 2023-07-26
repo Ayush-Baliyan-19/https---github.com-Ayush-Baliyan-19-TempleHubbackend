@@ -2,7 +2,7 @@ const router= require("express").Router()
 
 router.post("/",async (req,res)=>{
     const {email,subject,message}= req.body;
-    console.log(req.body)
+    console.log(email)
     const nodemailer= require("nodemailer")
     const transporter= nodemailer.createTransport({
         service:"gmail",
@@ -17,6 +17,7 @@ router.post("/",async (req,res)=>{
         subject:subject,
         text:message
     },(err,data)=>{
+        console.log(err,data);
         if(err){
             return res.status(400).json({Success:false,Message:"Email not sent"})
         }

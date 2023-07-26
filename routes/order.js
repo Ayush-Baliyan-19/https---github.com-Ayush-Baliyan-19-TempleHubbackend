@@ -51,8 +51,11 @@ router.put("/:id", verifyTokenAndAdmin, async (req, res) => {
 router.patch("/status/:orderId", verifyTokenAndAdmin, async (req, res) => {
   console.log(req.params.orderId)
   try {
+    console.log(req.body.DeliveryService);
     const updatedOrder = await Order.findByIdAndUpdate(req.params.orderId, {
-      $set: { status: req.body.status }
+      $set: { status: req.body.status,
+        DeliveryService:req.body.DeliveryService,
+      }
     }, { new: true })
     res.status(200).json({ Success: true, Message: "Order status has been updated", Updated_Order: updatedOrder })
   } catch (error) {

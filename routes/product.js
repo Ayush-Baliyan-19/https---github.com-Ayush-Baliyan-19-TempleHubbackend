@@ -23,9 +23,7 @@ router.post("/", verifyTokenAndAdmin, async (req, res) => {
 
 //Upload Image
 
-
 const upload = multer({ dest: "./uploads/" });
-  
 
 router.post("/images/upload/:id", verifyTokenAndAdmin, upload.array("images"), async (req, res) => {
     try {
@@ -58,60 +56,6 @@ router.post("/images/upload/:id", verifyTokenAndAdmin, upload.array("images"), a
       res.status(500).json({ Success: false, Message: error.message });
     }
   });
-
-
-
-
-  router.get("/images/:id", async (req, res) => {
-    const requestedId = req.params.id;
-  
-    try {
-      // First, fetch the Product document by its productId
-      const productFound = await Product.findById(requestedId);
-  
-      if (!productFound) {
-        return res.status(404).json({ Success: false, Message: "Product not found" });
-      }
-  
-      // Access the GridFSBucket from the global object
-      const bucket = global.gridFSBucket;
-      console.log(productFound.images);
-      // Fetch the image files from GridFS based on the images array in the Product document
-      const matchingFilesCursor = bucket.find({
-        _id: { $in: productFound.images },
-      });
-      // Convert the cursor to an array of file documents
-      const matchingFiles = await matchingFilesCursor.toArray();
-      console.log(matchingFiles);
-  
-      if (matchingFiles.length === 0) {
-        return res.status(404).json({ Success: false, Message: "No matching images found" });
-      }
-  
-      // Create a new zip archive
-      const archive = archiver("zip");
-  
-      // Pipe the zip archive to the response object
-      archive.pipe(res);
-  
-      // Add each matching image file to the zip archive
-      for (const file of matchingFiles) {
-        // Get the file data from GridFS
-        const fileStream = bucket.openDownloadStream(file._id);
-  
-        // Append the file to the zip archive with the original filename
-        archive.append(fileStream, { name: file.filename });
-      }
-  
-      // Finalize the zip archive and send it as the response
-      archive.finalize();
-    } catch (error) {
-      res.status(500).json({ Success: false, Message: "Error retrieving images from GridFS" });
-    }
-  });
-  
-
-
 
 //Add Review to a product
 
@@ -154,6 +98,54 @@ router.put("/:id", verifyTokenAndAdmin, async (req, res) => {
             $set: req.body
         }, { new: true })
         res.status(200).json({ Success: true, Message: "Product has been updated", Updated_Product: updatedProduct })
+    } catch (error) {
+        res.status(400).send(error.message)
+    }
+})
+
+//Remove an image from s3 container
+
+router.delete("/images/remove/:id", verifyTokenAndAdmin, async (req, res) => {
+    try {
+      const product = await Product.findById(req.params.id);
+      if (!product) {
+        return res.status(400).json({ Success: false, Message: "Product was not found" });
+      }
+  
+      const images = product.images;
+      const index = req.body.index;
+  
+      // Validate the index before accessing images[index]
+      if (index < 0 || index >= images.length) {
+        return res.status(400).json({ Success: false, Message: "Invalid image index" });
+      }
+  
+      // Delete the image from S3
+      const fileKeyToRemove = images[index];
+      const removeParams = {
+        Key: fileKeyToRemove,
+        Bucket: bucketName
+      };
+      await s3.deleteObject(removeParams).promise();
+  
+      // Remove the image from the images array in the product document
+      images.splice(index, 1);
+  
+      // Save the updated product document back to the database
+      await product.save();
+  
+      res.status(200).json({ Success: true, Message: "Image has been removed", Updated_Product: product });
+    } catch (error) {
+      res.status(400).json(error.message);
+    }
+  });  
+
+//Set A Sale
+
+router.put("/sale", verifyTokenAndAdmin, async (req, res) => {
+    try {
+        const productSales= await Product.updateMany({$set:{sale:req.body.sale}})
+        res.status(200).json({ Success: true, Message: "Sale has been set", Updated_Product: productSales })
     } catch (error) {
         res.status(400).send(error.message)
     }
