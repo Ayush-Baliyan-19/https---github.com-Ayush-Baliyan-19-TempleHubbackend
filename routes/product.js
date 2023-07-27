@@ -5,7 +5,7 @@ const { verifyTokenAndAdmin, verifyTokenAndAuthorization } = require("./Middlewa
 const { body, validationResult } = require("express-validator")
 const multer = require("multer")
 const archiver = require("archiver")
-const { uploadFile } = require("./s3")
+const { uploadFile, removeFile } = require("./s3")
 //Create a product
 
 router.post("/", verifyTokenAndAdmin, async (req, res) => {
@@ -33,21 +33,21 @@ router.post("/images/upload/:id", verifyTokenAndAdmin, upload.array("images"), a
         return res.status(400).json({ Success: false, Message: "No files were uploaded" });
       }
   
+      const product = await Product.findById(req.params.id);
       // Upload each file to S3 and get the file URLs
-      const fileUrls = [];
+      const fileUrls = product.images;
       for (const file of files) {
         const result = await uploadFile(file);
         fileUrls.push(result.Location); // 'Location' contains the URL of the uploaded file in S3
       }
-  
+      
+      console.log(product);
       // Update the product with the new image URLs
-      const productFound = await Product.findByIdAndUpdate(
-        req.params.id,
-        { $set: { images: fileUrls } },
-        { new: true } // Return the updated product document
-      );
+      product.images = fileUrls;
+
+      await product.save();
   
-      if (!productFound) {
+      if (!product) {
         return res.status(400).json({ Success: false, Message: "Product was not found" });
       }
   
@@ -122,14 +122,16 @@ router.delete("/images/remove/:id", verifyTokenAndAdmin, async (req, res) => {
   
       // Delete the image from S3
       const fileKeyToRemove = images[index];
+      console.log(fileKeyToRemove.split("/")[3]);
       const removeParams = {
-        Key: fileKeyToRemove,
-        Bucket: bucketName
+        Key: fileKeyToRemove.split("/")[3],
+        Bucket: process.env.AWS_BUCKET_NAME,
       };
-      await s3.deleteObject(removeParams).promise();
+
+        await removeFile(removeParams.Key)
   
       // Remove the image from the images array in the product document
-      images.splice(index, 1);
+      product.images.splice(index, 1);
   
       // Save the updated product document back to the database
       await product.save();
@@ -138,7 +140,7 @@ router.delete("/images/remove/:id", verifyTokenAndAdmin, async (req, res) => {
     } catch (error) {
       res.status(400).json(error.message);
     }
-  });  
+});  
 
 //Set A Sale
 

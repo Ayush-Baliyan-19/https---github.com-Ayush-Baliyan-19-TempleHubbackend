@@ -17,7 +17,8 @@ const ProductSchema = new mongoose.Schema(
           comment:{type:String},
           date:{type:Date,default:Date.now}
         }
-    ]
+    ],
+    sale: { type: Number, default: 0 }
   },
   {
     timestamps: true,
