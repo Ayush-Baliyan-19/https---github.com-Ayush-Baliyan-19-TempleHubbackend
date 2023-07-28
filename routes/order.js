@@ -62,6 +62,7 @@ router.patch("/status/:orderId", verifyTokenAndAdmin, async (req, res) => {
     res.status(400).send(error.message)
   }
 })
+
 //Delete Order
 
 router.delete("/:id", verifyTokenAndAdmin, async (req, res) => {
