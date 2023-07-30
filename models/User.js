@@ -11,6 +11,10 @@ const UserSchema = new mongoose.Schema({
     favorites:{
         type:Array,
         default:[]
+    },
+    DeliveredOrders:{
+        type:Array,
+        default:[]
     }
 },{
     timestamps:true

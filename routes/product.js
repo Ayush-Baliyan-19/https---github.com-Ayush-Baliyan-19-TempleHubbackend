@@ -10,6 +10,7 @@ const Order = require("../models/Order")
 //Create a product
 
 router.post("/", verifyTokenAndAdmin, async (req, res) => {
+    console.log(req.body);
     const newProduct = new Product(req.body)
     try {
         const savedProduct = await newProduct.save()
@@ -209,29 +210,41 @@ router.get("/find/:id", async (req, res) => {
 //Get all product
 
 router.get("/", async (req, res) => {
-    const qNew = req.query.new
-    const qCategories = req.query.Categories
-    const limit = req.query.limit ? req.query.limit : 5
+    const qNew = req.query.new;
+    const qCategories = req.query.Categories;
+    const qSearch = req.query.search; // Search query from frontend
+    console.log(qSearch);
+    console.log(qCategories)
+    const limit = req.query.limit ? parseInt(req.query.limit) : 5;
+  
     try {
-
-        let products;
-        if (qNew) {
-            products = await Product.find().sort({ createdAt: -1 }).limit(limit)
-            console.log(products);
-        } else if (qCategories) {
-            products = await Product.find({
-                Categories: {
-                    $in: [qCategories],
-                }
-            })
-        }
-        else {
-            products = await Product.find();
-        }
-        res.status(200).json({ Success: true, Products: products })
+      let products;
+      if (qNew) {
+        products = await Product.find().sort({ createdAt: -1 }).limit(limit);
+        console.log(products);
+      } else if (qCategories) {
+        products = await Product.find({
+          Categories: {
+            $in: [qCategories],
+          },
+        });
+      } else if (qSearch) {
+        // Use a regular expression to search for products with similar names or categories
+        const regex = new RegExp(qSearch, "i");
+        products = await Product.find({
+          $or: [
+            { title: { $regex: regex } }, // Search by title
+            { Categories: { $regex: regex } }, // Search by categories
+          ],
+        });
+      } else {
+        products = await Product.find();
+      }
+      res.status(200).json({ Success: true, Products: products });
     } catch (error) {
-        res.status(400).send(error.message)
+      res.status(400).send(error.message);
     }
-})
+  });
+  
 
 module.exports = router

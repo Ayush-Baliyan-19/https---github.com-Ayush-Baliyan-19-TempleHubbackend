@@ -28,16 +28,6 @@ function uploadFile(file) {
 exports.uploadFile = uploadFile
 
 
-// downloads a file from s3
-function getFileStream(fileKey) {
-  const downloadParams = {
-    Key: fileKey,
-    Bucket: bucketName
-  }
-
-  return s3.getObject(downloadParams).createReadStream()
-}
-
 //Remove an image from s3 container
 
 function removeFile(fileKey) {
@@ -49,5 +39,3 @@ function removeFile(fileKey) {
   return s3.deleteObject(removeParams).promise()
 }
 exports.removeFile = removeFile
-
-exports.getFileStream = getFileStream

@@ -2,6 +2,7 @@ const express = require("express")
 const router = express.Router()
 const Order = require("../models/Order")
 const Cart = require("../models/Cart")
+const User = require("../models/User")
 const { verifyTokenAndAdmin, verifyToken, verifyTokenAndAuthorization } = require("./Middlewares/verifyUser")
 
 //Create a order
@@ -49,19 +50,46 @@ router.put("/:id", verifyTokenAndAdmin, async (req, res) => {
 
 //Change Order Status
 router.patch("/status/:orderId", verifyTokenAndAdmin, async (req, res) => {
-  console.log(req.params.orderId)
+  console.log(req.params.orderId);
   try {
-    console.log(req.body.DeliveryService);
-    const updatedOrder = await Order.findByIdAndUpdate(req.params.orderId, {
-      $set: { status: req.body.status,
-        DeliveryService:req.body.DeliveryService,
+    const updatedOrder = await Order.findByIdAndUpdate(
+      req.params.orderId,
+      {
+        $set: {
+          status: req.body.status,
+          DeliveryService: req.body.DeliveryService,
+        },
+      },
+      { new: true }
+    );
+
+    if (req.body.status === "Delivered") {
+      if (updatedOrder) {
+        console.log(updatedOrder.products);
+        const userFound = await User.findById(updatedOrder.userId);
+        if (userFound) {
+          const productIds = updatedOrder.products.map((item) => {
+            return item.productId;
+          });
+          console.log(productIds);
+          userFound.DeliveredOrders.push(...productIds);
+          await userFound.save();
+        }
       }
-    }, { new: true })
-    res.status(200).json({ Success: true, Message: "Order status has been updated", Updated_Order: updatedOrder })
+    }
+
+    res
+      .status(200)
+      .json({
+        Success: true,
+        Message: "Order status has been updated",
+        Updated_Order: updatedOrder,
+      });
   } catch (error) {
-    res.status(400).send(error.message)
+    res.status(400).send(error.message);
   }
-})
+});
+
 
 //Delete Order
 
@@ -100,8 +128,7 @@ router.get("/", verifyTokenAndAdmin, async (req, res) => {
       orders = await Order.find();
       console.log(orders);
     }
-    if(orders)
-    {
+    if (orders) {
       res.status(200).json({ Success: true, Orders: orders });
     }
   } catch (error) {
