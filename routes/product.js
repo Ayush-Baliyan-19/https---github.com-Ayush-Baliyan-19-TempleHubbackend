@@ -7,6 +7,7 @@ const multer = require("multer")
 const archiver = require("archiver")
 const { uploadFile, removeFile } = require("./s3")
 const Order = require("../models/Order")
+const User = require("../models/User")
 //Create a product
 
 router.post("/", verifyTokenAndAdmin, async (req, res) => {
@@ -67,7 +68,6 @@ router.put("/review/:id", [
     body("comment", "Enter valid comment").isLength({ min: 3 }),
 ], verifyTokenAndAuthorization, async (req, res) => {
 
-
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
@@ -78,18 +78,28 @@ router.put("/review/:id", [
         const review = {
             name: req.body.name,
             rating: req.body.rating,
-            comment: req.body.comment
+            comment: req.body.comment,
+        };
+        const userFound = await User.findById(req.user._id);
+        console.log(review)
+        if (userFound) {
+            for (const productId of userFound.DeliveredOrders) {
+                if (productId === req.params.id) {
+                    const product = await Product.findByIdAndUpdate(req.params.id, {
+                        $push: { reviews: review },
+                    });
+                    res.status(200).json({ Success: true, Message: "Review added", Updated_Product: product });
+                    return; // Return here to exit the loop after finding the matching productId
+                }
+            }
         }
-        const product = await Product.findByIdAndUpdate(req.params.id, {
-            $push: { reviews: review }
-        })
-        if (!product) {
-            return res.status(400).json({ Success: false, Message: "Product was not found" });
-        }
-        res.status(200).json({ Success: true, Message: "Review added", Updated_Product: updatedProduct })
+
+        // If the loop completes without finding the matching productId
+        res.status(400).json({ Success: false, Message: "Product not found in user's delivered orders" });
     } catch (error) {
-        res.status(400).json(error)
+        res.status(400).json(error);
     }
+
 })
 
 //Get product Details and update
@@ -216,35 +226,35 @@ router.get("/", async (req, res) => {
     console.log(qSearch);
     console.log(qCategories)
     const limit = req.query.limit ? parseInt(req.query.limit) : 5;
-  
+
     try {
-      let products;
-      if (qNew) {
-        products = await Product.find().sort({ createdAt: -1 }).limit(limit);
-        console.log(products);
-      } else if (qCategories) {
-        products = await Product.find({
-          Categories: {
-            $in: [qCategories],
-          },
-        });
-      } else if (qSearch) {
-        // Use a regular expression to search for products with similar names or categories
-        const regex = new RegExp(qSearch, "i");
-        products = await Product.find({
-          $or: [
-            { title: { $regex: regex } }, // Search by title
-            { Categories: { $regex: regex } }, // Search by categories
-          ],
-        });
-      } else {
-        products = await Product.find();
-      }
-      res.status(200).json({ Success: true, Products: products });
+        let products;
+        if (qNew) {
+            products = await Product.find().sort({ createdAt: -1 }).limit(limit);
+            console.log(products);
+        } else if (qCategories) {
+            products = await Product.find({
+                Categories: {
+                    $in: [qCategories],
+                },
+            });
+        } else if (qSearch) {
+            // Use a regular expression to search for products with similar names or categories
+            const regex = new RegExp(qSearch, "i");
+            products = await Product.find({
+                $or: [
+                    { title: { $regex: regex } }, // Search by title
+                    { Categories: { $regex: regex } }, // Search by categories
+                ],
+            });
+        } else {
+            products = await Product.find();
+        }
+        res.status(200).json({ Success: true, Products: products });
     } catch (error) {
-      res.status(400).send(error.message);
+        res.status(400).send(error.message);
     }
-  });
-  
+});
+
 
 module.exports = router
