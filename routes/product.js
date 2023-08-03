@@ -93,7 +93,6 @@ router.put("/review/:id", [
                 }
             }
         }
-
         // If the loop completes without finding the matching productId
         res.status(400).json({ Success: false, Message: "Product not found in user's delivered orders" });
     } catch (error) {
@@ -156,10 +155,22 @@ router.delete("/images/remove/:id", verifyTokenAndAdmin, async (req, res) => {
 
 //Set A Sale
 
-router.put("/sale", verifyTokenAndAdmin, async (req, res) => {
+router.post("/sale", verifyTokenAndAdmin, async (req, res) => {
+    console.log("req called");
+    console.log(req.body)
     try {
-        const productSales = await Product.updateMany({ $set: { sale: req.body.sale } })
-        res.status(200).json({ Success: true, Message: "Sale has been set", Updated_Product: productSales })
+        const productSales = await Product.updateMany({ $set: { sale: req.body.Sale } })
+        res.status(200).json({ Success: true, Message: "Sale has been set" })
+    } catch (error) {
+        res.status(400).send(error.message)
+    }
+})
+
+router.get("/sale", verifyTokenAndAdmin, async (req, res) => {
+    try {
+        const productSales = await Product.find()
+        const sale= productSales[0].sale;
+        res.status(200).json({ Success: true, Sale:sale })
     } catch (error) {
         res.status(400).send(error.message)
     }
