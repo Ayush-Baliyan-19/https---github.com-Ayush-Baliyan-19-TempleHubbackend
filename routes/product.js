@@ -11,7 +11,7 @@ const User = require("../models/User")
 //Create a product
 
 router.post("/", verifyTokenAndAdmin, async (req, res) => {
-    console.log(req.body);
+    //console.log(req.body);
     const newProduct = new Product(req.body)
     try {
         const savedProduct = await newProduct.save()
@@ -44,7 +44,7 @@ router.post("/images/upload/:id", verifyTokenAndAdmin, upload.array("images"), a
             fileUrls.push(result.Location); // 'Location' contains the URL of the uploaded file in S3
         }
 
-        console.log(product);
+        //console.log(product);
         // Update the product with the new image URLs
         product.images = fileUrls;
 
@@ -81,7 +81,7 @@ router.put("/review/:id", [
             comment: req.body.comment,
         };
         const userFound = await User.findById(req.user._id);
-        console.log(review)
+        //console.log(review)
         if (userFound) {
             for (const productId of userFound.DeliveredOrders) {
                 if (productId === req.params.id) {
@@ -133,7 +133,7 @@ router.delete("/images/remove/:id", verifyTokenAndAdmin, async (req, res) => {
 
         // Delete the image from S3
         const fileKeyToRemove = images[index];
-        console.log(fileKeyToRemove.split("/")[3]);
+        //console.log(fileKeyToRemove.split("/")[3]);
         const removeParams = {
             Key: fileKeyToRemove.split("/")[3],
             Bucket: process.env.AWS_BUCKET_NAME,
@@ -156,8 +156,8 @@ router.delete("/images/remove/:id", verifyTokenAndAdmin, async (req, res) => {
 //Set A Sale
 
 router.post("/sale", verifyTokenAndAdmin, async (req, res) => {
-    console.log("req called");
-    console.log(req.body)
+    //console.log("req called");
+    //console.log(req.body)
     try {
         const productSales = await Product.updateMany({ $set: { sale: req.body.Sale } })
         res.status(200).json({ Success: true, Message: "Sale has been set" })
@@ -221,7 +221,7 @@ router.delete("/:id", verifyTokenAndAdmin, async (req, res) => {
 router.get("/find/:id", async (req, res) => {
     try {
         const product = await Product.findById(req.params.id)
-        console.log(product);
+        //console.log(product);
         res.status(200).json(product)
     } catch (error) {
         res.status(400).send(error.message)
@@ -234,15 +234,15 @@ router.get("/", async (req, res) => {
     const qNew = req.query.new;
     const qCategories = req.query.Categories;
     const qSearch = req.query.search; // Search query from frontend
-    console.log(qSearch);
-    console.log(qCategories)
+    //console.log(qSearch);
+    //console.log(qCategories)
     const limit = req.query.limit ? parseInt(req.query.limit) : 5;
 
     try {
         let products;
         if (qNew) {
             products = await Product.find().sort({ createdAt: -1 }).limit(limit);
-            console.log(products);
+            //console.log(products);
         } else if (qCategories) {
             products = await Product.find({
                 Categories: {

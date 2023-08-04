@@ -17,7 +17,7 @@ router.post("/:id", verifyTokenAndAuthorization, async (req, res) => {
         products: [{ productId, quantity, customization, color, dimension }],
         currency: currency
       };
-      console.log(newCart);
+      //console.log(newCart);
       const createdCart = await Cart.create(newCart);
 
       if (!createdCart) {
@@ -71,7 +71,7 @@ router.post("/addAddress/:id", async (req, res) => {
     const finalUpdated = await updatedCart.save();
     if(finalUpdated)
     { 
-      console.log(finalUpdated)
+      //console.log(finalUpdated)
       return res.status(200).json({Success:true,message:"Address added to cart"});
     }
     } catch (error) {
@@ -121,7 +121,7 @@ router.post("/addAddress/:id", async (req, res) => {
 router.delete("/:id",verifyTokenAndAuthorization, async (req, res) => {
     try {
         const cartToBeDeleted= await Cart.findOneAndDelete({userId:req.params.id})
-        console.log(cartToBeDeleted)
+        //console.log(cartToBeDeleted)
         res.status(200).json({ Success: true, message: "Cart has been deleted...." })
     } catch (error) {
         res.status(400).send(error.message)

@@ -49,7 +49,7 @@ router.post("/login", [
     body("email","Email is not valid").isString(),
     body("password","Password is not a valid password").isLength({min:8})
 ], async (req,res)=>{
-    console.log(req.body);
+    //console.log(req.body);
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {

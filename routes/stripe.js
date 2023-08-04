@@ -9,7 +9,7 @@ router.post("/create-payment-intent", async (req, res)=>{
     })
     if(paymentIntent)
     {   
-        console.log(paymentIntent.client_secret)
+        //console.log(paymentIntent.client_secret)
         return res.status(200).json({clientSecret:paymentIntent.client_secret})
     }
     res.status(500).send("Something went wrong")

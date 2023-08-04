@@ -12,7 +12,7 @@ const verifyToken = (req, res, next) => {
                     Message: "Token is not right!!"
                 })
             }
-            // console.log(user)
+            // //console.log(user)
             req.user = user;
             next();
         })
@@ -36,7 +36,7 @@ const verifyTokenAndAuthorization = (req, res, next) => {
     })
 }
 const verifyTokenAndAdmin = (req, res, next) => {
-    // console.log("admin working");
+    // //console.log("admin working");
     verifyToken(req, res, () => {
         if (req.user.isAdmin) {
             next()

@@ -83,7 +83,7 @@ router.put("/:id", verifyTokenAndAdmin, async (req, res) => {
 
 //Change Order Status
 router.patch("/status/:orderId", verifyTokenAndAdmin, async (req, res) => {
-  console.log(req.params.orderId);
+  //console.log(req.params.orderId);
   try {
     const updatedOrder = await Order.findByIdAndUpdate(
       req.params.orderId,
@@ -98,13 +98,13 @@ router.patch("/status/:orderId", verifyTokenAndAdmin, async (req, res) => {
 
     if (req.body.status === "Delivered") {
       if (updatedOrder) {
-        console.log(updatedOrder.products);
+        //console.log(updatedOrder.products);
         const userFound = await User.findById(updatedOrder.userId);
         if (userFound) {
           const productIds = updatedOrder.products.map((item) => {
             return item.productId;
           });
-          console.log(productIds);
+          //console.log(productIds);
           userFound.DeliveredOrders.push(...productIds);
           await userFound.save();
         }
@@ -151,16 +151,16 @@ router.get("/find/:userId", verifyTokenAndAuthorization, async (req, res) => {
 router.get("/", verifyTokenAndAdmin, async (req, res) => {
   try {
     const { status } = req.query; // Get the status from the query parameters
-    console.log(status);
+    //console.log(status);
     let orders;
     if (status) {
       // If the status parameter is provided
       orders = await Order.find({ status: status }); // Find orders with the specified status
-      console.log(orders);
+      //console.log(orders);
     } else {
       // If no status parameter is provided, retrieve all orders
       orders = await Order.find();
-      console.log(orders);
+      //console.log(orders);
     }
     if (orders) {
       res.status(200).json({ Success: true, Orders: orders });

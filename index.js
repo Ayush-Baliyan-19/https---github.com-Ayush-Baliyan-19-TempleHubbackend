@@ -30,5 +30,5 @@ app.use("/api/mail",require("./routes/mailer"))
 app.use("/api/delivery",require("./routes/delivery"))
 
 app.listen(process.env.PORT||80,()=>{
-    console.log("Server Started at localhost")
+    //console.log("Server Started at localhost")
 })
