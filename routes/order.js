@@ -128,8 +128,8 @@ router.patch("/status/:orderId", verifyTokenAndAdmin, async (req, res) => {
 
 router.delete("/:id", verifyTokenAndAdmin, async (req, res) => {
   try {
-    await Order.findByIdAndDelete(req.params.id)
-    res.status(200).json({ Success: true, message: "Order has been deleted...." })
+    const OrderFound=await Order.findByIdAndDelete(req.params.id)
+    res.status(200).json({ Success: true, message: "Order has been deleted...." , Order:OrderFound })
   } catch (error) {
     res.status(400).send(error.message)
   }
