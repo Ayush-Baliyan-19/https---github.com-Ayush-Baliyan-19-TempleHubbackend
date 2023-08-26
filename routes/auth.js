@@ -74,7 +74,7 @@ router.post("/login", [
             return res.status(500).json({Success:false,Message:"Invalid credentials"})
         }
 
-        const token = jwt.sign({_id: user._id,isAdmin:user.isAdmin},JWT_SECRET,{expiresIn:"30d"})
+        const token = jwt.sign({_id: user._id,isAdmin:user.isAdmin},JWT_SECRET)
 
 
         res.status(200).json({Success:true,token:token,...others});
