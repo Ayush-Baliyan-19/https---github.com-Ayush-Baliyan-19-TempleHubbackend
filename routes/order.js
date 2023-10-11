@@ -9,7 +9,7 @@ const { Convert } = require("easy-currencies")
 const sha512 = require('js-sha512');
 const { verifyTokenAndAdmin, verifyTokenAndAuthorization } = require("./Middlewares/verifyUser")
 const { call } = require("../payment/util")
-const { v4 as uuid } = require("uuid")
+const { v4 } = require("uuid")
 
 //Create a order
 
