@@ -1,10 +1,14 @@
 const express = require("express")
 const router = express.Router()
 const Order = require("../models/Order")
+const Product = require("../models/Product")
 const Cart = require("../models/Cart")
 const User = require("../models/User")
 const Delivery = require("../models/Delivery")
-const { verifyTokenAndAdmin, verifyToken, verifyTokenAndAuthorization } = require("./Middlewares/verifyUser")
+const { Convert } = require("easy-currencies")
+const sha512 = require('js-sha512');
+const { verifyTokenAndAdmin, verifyTokenAndAuthorization } = require("./Middlewares/verifyUser")
+const { call } = require("../payment/util")
 
 //Create a order
 
@@ -128,8 +132,8 @@ router.patch("/status/:orderId", verifyTokenAndAdmin, async (req, res) => {
 
 router.delete("/:id", verifyTokenAndAdmin, async (req, res) => {
   try {
-    const OrderFound=await Order.findByIdAndDelete(req.params.id)
-    res.status(200).json({ Success: true, message: "Order has been deleted...." , Order:OrderFound })
+    const OrderFound = await Order.findByIdAndDelete(req.params.id)
+    res.status(200).json({ Success: true, message: "Order has been deleted....", Order: OrderFound })
   } catch (error) {
     res.status(400).send(error.message)
   }
@@ -169,6 +173,119 @@ router.get("/", verifyTokenAndAdmin, async (req, res) => {
     res.status(400).send(error.message);
   }
 });
+
+function geturl(env) {
+  if (env == 'test') {
+    url_link = "https://testpay.easebuzz.in/";
+  } else if (env == 'prod') {
+    url_link = 'https://pay.easebuzz.in/';
+  } else {
+    url_link = "https://testpay.easebuzz.in/";
+  }
+  return url_link;
+}
+
+router.post("/payment/:cartId",verifyTokenAndAuthorization, async (req, res) => {
+  try {
+    const { cartId } = req.params;
+    const cart = await Cart.findById(cartId);
+    let price = 0;
+    if (cart.currency == "INR") {
+      for (const item of cart.products) {
+        const productFound = await Product.findById(item.productId);
+        if (productFound && Array.isArray(productFound.sizesandprices)) {
+          const matchingSizeAndPrice = productFound.sizesandprices.find((sizeandprice) => {
+            return String(sizeandprice.dimensions) === String(item.dimension);
+          });
+          if (matchingSizeAndPrice) {
+            price += matchingSizeAndPrice.priceIndia;
+          } else {
+            console.log('No matching size and price found for dimension:', item.dimension);
+          }
+        }
+      }
+    } else {
+      for (const item of cart.products) {
+        const productFound = await Product.findById(item.productId);
+        if (productFound && Array.isArray(productFound.sizesandprices)) {
+          const matchingSizeAndPrice = productFound.sizesandprices.find((sizeandprice) => {
+            return sizeandprice.dimensions === item.dimension;
+          });
+          if (matchingSizeAndPrice) {
+            price += matchingSizeAndPrice.priceOutside;
+          } else {
+            console.log('No matching size and price found for dimension:', item.dimension);
+          }
+        }
+      }
+    }
+    finalPrice = await Convert(price).from("USD").to("INR")
+    const userFound = await User.findById(cart.userId)
+    const firstname = userFound.username;
+    let data = {
+      'key': process.env.EASEBUZZ_KEY,
+      'txnid': cartId,
+      'email': cart.address.email,
+      'amount': finalPrice.toFixed(2),
+      'phone': cart.address.phone,
+      'firstname': firstname,
+      'udf1': '',
+      'udf2': '',
+      'udf3': '',
+      'udf4': '',
+      'udf5': '',
+      'hash': '',
+      'productinfo': "Temple from The Temple Hub",
+      'udf6': '',
+      'udf7': '',
+      'udf8': '',
+      'udf9': '',
+      'udf10': '',
+      'furl': 'http://localhost:3000/response',
+      'surl': 'http://localhost:3000/response',
+      'unique_id': undefined,
+      'split_payments': undefined,
+      'sub_merchant_id': undefined,
+      'customer_authentication_id': undefined
+    }
+    let hashstring = data.key + "|" + data.txnid + "|" + data.amount + "|" + data.productinfo + "|" + data.firstname + "|" + data.email +
+      "|" + data.udf1 + "|" + data.udf2 + "|" + data.udf3 + "|" + data.udf4 + "|" + data.udf5 + "|" + data.udf6 + "|" + data.udf7 + "|" + data.udf8 + "|" + data.udf9 + "|" + data.udf10;
+    hashstring += "|" + process.env.EASEBUZZ_SALT;
+    data.hash = sha512.sha512(hashstring);
+    const url = geturl(process.env.EASEBUZZ_ENV);    
+    call_url = url + 'payment/initiateLink';
+    call(call_url, data).then(function (response) {
+      if (response.status=1) {
+        console.log(response);
+        var finalUrl = url + 'pay/' + response.data;
+        // return res.redirect(url);
+        res.status(200).json({ Success: true, key: process.env.EASEBUZZ_KEY, access_key:response.data, FinalUrl: finalUrl });
+        // pay(response.data, url, res);
+      }
+    });
+    if (!cart) {
+      return res.status(400).json({ Success: false, Message: "Cart not found" });
+    }
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+});
+
+function pay(access_key, url_main, res) {
+
+  if (process.env.EASEBUZZ_IFRAME == 0) {
+    var url = url_main + 'pay/' + access_key;
+    // return res.redirect(url);
+    return res.send("Payment URL: " + url);
+  } else {
+
+    res.render("enable_iframe.html", {
+      'key': config.key,
+      'access_key': access_key
+    });
+
+  }
+}
 
 
 
