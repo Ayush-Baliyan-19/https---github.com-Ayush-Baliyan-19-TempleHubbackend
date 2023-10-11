@@ -9,6 +9,7 @@ const { Convert } = require("easy-currencies")
 const sha512 = require('js-sha512');
 const { verifyTokenAndAdmin, verifyTokenAndAuthorization } = require("./Middlewares/verifyUser")
 const { call } = require("../payment/util")
+const { v4 as uuid } = require("uuid")
 
 //Create a order
 
@@ -224,7 +225,7 @@ router.post("/payment/:cartId",verifyTokenAndAuthorization, async (req, res) => 
     const firstname = userFound.username;
     let data = {
       'key': process.env.EASEBUZZ_KEY,
-      'txnid': cartId,
+      'txnid': v4(),
       'email': cart.address.email,
       'amount': finalPrice.toFixed(2),
       'phone': cart.address.phone,
