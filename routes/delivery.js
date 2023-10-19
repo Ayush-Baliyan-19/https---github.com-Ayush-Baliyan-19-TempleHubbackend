@@ -19,7 +19,7 @@ router.post('/',verifyTokenAndAdmin, async (req, res) => {
 );
 
 //Get all deliveries
-router.get('/',verifyTokenAndAuthorization, async (req, res) => {
+router.get('/:id',verifyTokenAndAuthorization, async (req, res) => {
     try {
         const deliveries = await Delivery.find();
         if (!deliveries) {

@@ -186,7 +186,7 @@ function geturl(env) {
   return url_link;
 }
 
-router.post("/payment/:cartId",verifyTokenAndAuthorization, async (req, res) => {
+router.post("/payment/:cartId/:id",verifyTokenAndAuthorization, async (req, res) => {
   try {
     const { cartId } = req.params;
     const cart = await Cart.findById(cartId);
