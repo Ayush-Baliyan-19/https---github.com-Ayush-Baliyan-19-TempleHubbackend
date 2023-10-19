@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Delivery = require('../models/Delivery');
-const { verifyTokenAndAdmin } = require('./Middlewares/verifyUser');
+const { verifyTokenAndAdmin, verifyTokenAndAuthorization } = require('./Middlewares/verifyUser');
 
 //Create a delivery
 router.post('/',verifyTokenAndAdmin, async (req, res) => {
@@ -19,7 +19,7 @@ router.post('/',verifyTokenAndAdmin, async (req, res) => {
 );
 
 //Get all deliveries
-router.get('/',verifyTokenAndAdmin, async (req, res) => {
+router.get('/',verifyTokenAndAuthorization, async (req, res) => {
     try {
         const deliveries = await Delivery.find();
         if (!deliveries) {
