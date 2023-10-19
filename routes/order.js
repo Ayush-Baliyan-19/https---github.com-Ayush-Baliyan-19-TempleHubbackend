@@ -13,7 +13,7 @@ const { v4 } = require("uuid")
 
 //Create a order
 
-router.post("/:id", verifyTokenAndAuthorization, async (req, res) => {
+router.post("/newOrder/:id", verifyTokenAndAuthorization, async (req, res) => {
   try {
     const id = req.params.id;
     const cart = await Cart.findOne({ userId: id });
