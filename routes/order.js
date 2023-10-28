@@ -44,6 +44,10 @@ router.post("/newOrder/:id", verifyTokenAndAuthorization, async (req, res) => {
           minTime: defaultDeliveryItem.DeliveryTime.minTime,
           maxTime: defaultDeliveryItem.DeliveryTime.maxTime,
         },
+        paymentDetails: {
+          txnId:req.body.paymentDetails.txnid,
+          Amount:req.body.paymentDetails.amount,
+        }
       });
       const savedOrder = await newOrder.save();
 
