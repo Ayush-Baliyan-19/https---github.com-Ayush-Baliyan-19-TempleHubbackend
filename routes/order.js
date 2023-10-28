@@ -31,11 +31,15 @@ router.post("/newOrder/:id", verifyTokenAndAuthorization, async (req, res) => {
       if (!defaultDeliveryItem) {
         return res.status(400).json({ Success: false, Message: "Delivery details not found" });
       }
+      const FinalAddress = {
+        ...cart.address,
+        Name: await User.findById(id).username
+      }
       const newOrder = new Order({
         userId: req.params.id,
         products: cart.products,
         status: "Received",
-        address: cart.address,
+        address: FinalAddress,
         OrderDates: {
           minTime: defaultDeliveryItem.DeliveryTime.minTime,
           maxTime: defaultDeliveryItem.DeliveryTime.maxTime,
@@ -199,7 +203,7 @@ router.post("/payment/:cartId/:id",verifyTokenAndAuthorization, async (req, res)
             return String(sizeandprice.dimensions) === String(item.dimension);
           });
           if (matchingSizeAndPrice) {
-            price += matchingSizeAndPrice.priceIndia;
+            price += parseFloat(matchingSizeAndPrice.priceIndia);
           } else {
             console.log('No matching size and price found for dimension:', item.dimension);
           }
@@ -213,7 +217,7 @@ router.post("/payment/:cartId/:id",verifyTokenAndAuthorization, async (req, res)
             return sizeandprice.dimensions === item.dimension;
           });
           if (matchingSizeAndPrice) {
-            price += matchingSizeAndPrice.priceOutside;
+            price += parseFloat(matchingSizeAndPrice.priceOutside);
           } else {
             console.log('No matching size and price found for dimension:', item.dimension);
           }
@@ -221,6 +225,7 @@ router.post("/payment/:cartId/:id",verifyTokenAndAuthorization, async (req, res)
       }
     }
     finalPrice = await Convert(price).from("USD").to("INR")
+    console.log(price);
     const userFound = await User.findById(cart.userId)
     const firstname = userFound.username;
     let data = {

@@ -30,6 +30,9 @@ const OrderSchema = new mongoose.Schema(
             type:Object
         },
         status: { type: String, default: "Recieved" },
+        paymentDetails :{
+            type:Object
+        },
         OrderDates :{
             type:Object
         }
