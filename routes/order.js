@@ -47,6 +47,7 @@ router.post("/newOrder/:id", verifyTokenAndAuthorization, async (req, res) => {
         paymentDetails: {
           txnId:req.body.paymentDetails.txnid,
           Amount:req.body.paymentDetails.amount,
+          Currency:req.body.paymentDetails.currency,
         }
       });
       const savedOrder = await newOrder.save();
