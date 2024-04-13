@@ -28,6 +28,7 @@ router.post("/", verifyTokenAndAdmin, async (req, res) => {
 //Upload Image
 
 const storage = multer.diskStorage({
+    
     destination: function (req, file, cb) {
         cb(null, "./images/"); // Destination folder on server
     },
