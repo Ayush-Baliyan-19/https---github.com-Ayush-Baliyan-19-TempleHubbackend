@@ -8,6 +8,7 @@ const archiver = require("archiver")
 const { uploadFile, removeFile } = require("./s3")
 const Order = require("../models/Order")
 const User = require("../models/User")
+const fs = require("fs");
 //Create a product
 
 router.post("/", verifyTokenAndAdmin, async (req, res) => {
@@ -26,7 +27,16 @@ router.post("/", verifyTokenAndAdmin, async (req, res) => {
 
 //Upload Image
 
-const upload = multer({ dest: "./uploads/" });
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, "../Backend/images/"); // Destination folder on server
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + "-" + file.originalname); // Unique filename
+    },
+});
+
+const upload = multer({ storage: storage });
 
 router.post("/images/upload/:id", verifyTokenAndAdmin, upload.array("images"), async (req, res) => {
     try {
@@ -37,17 +47,12 @@ router.post("/images/upload/:id", verifyTokenAndAdmin, upload.array("images"), a
         }
 
         const product = await Product.findById(req.params.id);
-        // Upload each file to S3 and get the file URLs
-        const fileUrls = product.images;
-        for (const file of files) {
-            const result = await uploadFile(file);
-            fileUrls.push(result.Location); // 'Location' contains the URL of the uploaded file in S3
-        }
-
-        //console.log(product);
-        // Update the product with the new image URLs
-        product.images = fileUrls;
-
+        
+        // Append the filenames of the uploaded images to the existing images array
+        const fileNames = files.map(file => file.filename);
+        product.images = [...product.images, ...fileNames];
+        
+        // Save the updated product with the new images
         await product.save();
 
         if (!product) {
@@ -59,6 +64,7 @@ router.post("/images/upload/:id", verifyTokenAndAdmin, upload.array("images"), a
         res.status(500).json({ Success: false, Message: error.message });
     }
 });
+
 
 //Add Review to a product
 
@@ -119,6 +125,7 @@ router.put("/:id", verifyTokenAndAdmin, async (req, res) => {
 router.delete("/images/remove/:id", verifyTokenAndAdmin, async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);
+
         if (!product) {
             return res.status(400).json({ Success: false, Message: "Product was not found" });
         }
@@ -131,15 +138,9 @@ router.delete("/images/remove/:id", verifyTokenAndAdmin, async (req, res) => {
             return res.status(400).json({ Success: false, Message: "Invalid image index" });
         }
 
-        // Delete the image from S3
-        const fileKeyToRemove = images[index];
-        //console.log(fileKeyToRemove.split("/")[3]);
-        const removeParams = {
-            Key: fileKeyToRemove.split("/")[3],
-            Bucket: process.env.AWS_BUCKET_NAME,
-        };
-
-        await removeFile(removeParams.Key)
+        // Remove the image file from the server
+        const imagePath = `./images/${images[index]}`;
+        fs.unlinkSync(imagePath); // Delete the file from the file system
 
         // Remove the image from the images array in the product document
         product.images.splice(index, 1);
@@ -169,8 +170,8 @@ router.post("/sale", verifyTokenAndAdmin, async (req, res) => {
 router.get("/sale", verifyTokenAndAdmin, async (req, res) => {
     try {
         const productSales = await Product.find()
-        const sale= productSales[0].sale;
-        res.status(200).json({ Success: true, Sale:sale })
+        const sale = productSales[0].sale;
+        res.status(200).json({ Success: true, Sale: sale })
     } catch (error) {
         res.status(400).send(error.message)
     }
@@ -183,20 +184,17 @@ router.delete("/:id", verifyTokenAndAdmin, async (req, res) => {
         const product = await Product.findById(req.params.id);
 
         if (!product) {
-            return res.status(400).json({ Success: false, Message: "Product was not found" });
+            return res.status(404).json({ Success: false, Message: "Product not found" });
         }
 
         // Delete the product from the Product collection
-        await product.deleteOne()
+        await product.deleteOne();
 
-        // Call removeFile function for all images in the product's images array
-        for (const image of product.images) {
-            const removeParams = {
-                Key: image.split("/")[3],
-                Bucket: process.env.AWS_BUCKET_NAME,
-            };
-            await removeFile(removeParams.Key);
-        }
+        // Delete images from the server's file system
+        await Promise.all(product.images.map(async imageName => {
+            const imagePath = `./public/images/${imageName}`;
+            fs.unlink(imagePath);
+        }));
 
         // Remove the product from the products array in all the orders
         const orders = await Order.find({ "products.productId": product._id });
@@ -210,23 +208,35 @@ router.delete("/:id", verifyTokenAndAdmin, async (req, res) => {
             }
         }
 
-        res.status(200).json({ Success: true, message: "Product has been deleted...." });
+        res.status(200).json({ Success: true, message: "Product and associated images have been deleted" });
     } catch (error) {
-        res.status(400).send(error.message);
+        res.status(500).json({ Success: false, Message: "Internal server error", error: error.message });
     }
 });
+
 
 //Get a product
 
 router.get("/find/:id", async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id)
-        //console.log(product);
-        res.status(200).json(product)
+        const product = await Product.findById(req.params.id);
+
+        if (!product) {
+            return res.status(404).json({ Success: false, Message: "Product not found" });
+        }
+
+        // Prepend the image path with the server URL to serve it
+        const images = product.images.map(image => `${req.protocol}://${req.get('host')}/images/${image}`);
+
+        // Replace the product's image URLs with local server URLs
+        const productWithImages = { ...product.toObject(), images };
+
+        res.status(200).json(productWithImages);
     } catch (error) {
-        res.status(400).send(error.message)
+        res.status(400).json({ Success: false, Message: error.message });
     }
-})
+});
+
 
 //Get all product
 
@@ -234,15 +244,12 @@ router.get("/", async (req, res) => {
     const qNew = req.query.new;
     const qCategories = req.query.Categories;
     const qSearch = req.query.search; // Search query from frontend
-    //console.log(qSearch);
-    //console.log(qCategories)
     const limit = req.query.limit ? parseInt(req.query.limit) : 5;
 
     try {
         let products;
         if (qNew) {
             products = await Product.find().sort({ createdAt: -1 }).limit(limit);
-            //console.log(products);
         } else if (qCategories) {
             products = await Product.find({
                 Categories: {
@@ -261,11 +268,20 @@ router.get("/", async (req, res) => {
         } else {
             products = await Product.find();
         }
-        res.status(200).json({ Success: true, Products: products });
+
+        // Modify products to include image URLs
+        const productsWithImages = products.map(product => {
+            // Prepend the image path with the server URL to serve it
+            const images = product.images.map(image => `${req.protocol}://${req.get('host')}/images/${image}`);
+            return { ...product.toObject(), images };
+        });
+
+        res.status(200).json({ Success: true, Products: productsWithImages });
     } catch (error) {
         res.status(400).send(error.message);
     }
 });
+
 
 
 module.exports = router
