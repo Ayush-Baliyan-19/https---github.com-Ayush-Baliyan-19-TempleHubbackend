@@ -29,7 +29,7 @@ router.post("/", verifyTokenAndAdmin, async (req, res) => {
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, "../Backend/images/"); // Destination folder on server
+        cb(null, "./images/"); // Destination folder on server
     },
     filename: function (req, file, cb) {
         cb(null, Date.now() + "-" + file.originalname); // Unique filename
