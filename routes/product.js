@@ -4,12 +4,26 @@ const Product = require("../models/Product")
 const { verifyTokenAndAdmin, verifyTokenAndAuthorization } = require("./Middlewares/verifyUser")
 const { body, validationResult } = require("express-validator")
 const multer = require("multer")
-const archiver = require("archiver")
-const { uploadFile, removeFile } = require("./s3")
 const Order = require("../models/Order")
 const User = require("../models/User")
 const fs = require("fs");
+
+const { initializeApp } =require('firebase/app');
+
+// TODO: Replace the following with your app's Firebase project configuration
+const app = initializeApp({
+    apiKey: process.env.FIREBASE_CONFIG_API_KEY,
+    authDomain: process.env.FIREBASE_CONFIG_AUTH_DOMAIN,
+    projectId: process.env.FIREBASE_CONFIG_PROJECT_ID,
+    storageBucket: process.env.FIREBASE_CONFIG_STORAGE_BUCKET,
+    messagingSenderId: process.env.FIREBASE_CONFIG_MESSAGING_SENDER_ID,
+    appId: process.env.FIREBASE_CONFIG_APP_ID,
+  });
+
 //Create a product
+const { getStorage, ref, uploadBytes, deleteObject  } = require("firebase/storage");
+
+
 
 router.post("/", verifyTokenAndAdmin, async (req, res) => {
     //console.log(req.body);
@@ -27,11 +41,7 @@ router.post("/", verifyTokenAndAdmin, async (req, res) => {
 
 //Upload Image
 
-const storage = multer.diskStorage({
-    
-    destination: function (req, file, cb) {
-        cb(null, "./images/"); // Destination folder on server
-    },
+const storage = multer.memoryStorage({
     filename: function (req, file, cb) {
         cb(null, Date.now() + "-" + file.originalname); // Unique filename
     },
@@ -49,9 +59,21 @@ router.post("/images/upload/:id", verifyTokenAndAdmin, upload.array("images"), a
 
         const product = await Product.findById(req.params.id);
         
+        // Initialize Firebase Storage
+        const firebasestorage = getStorage(app);
+
+        // Upload each image to Firebase Storage
+        const uploadPromises = files.map(async file => {
+            const storageRef = ref(firebasestorage, `products/${product._id}/${file.originalname}`);
+            await uploadBytes(storageRef, file.buffer);
+            return file.originalname;
+        });
+
+        // Wait for all uploads to finish
+        const uploadedFileNames = await Promise.all(uploadPromises);
+
         // Append the filenames of the uploaded images to the existing images array
-        const fileNames = files.map(file => file.filename);
-        product.images = [...product.images, ...fileNames];
+        product.images = [...product.images, ...uploadedFileNames];
         
         // Save the updated product with the new images
         await product.save();
@@ -121,7 +143,6 @@ router.put("/:id", verifyTokenAndAdmin, async (req, res) => {
     }
 })
 
-//Remove an image from s3 container
 
 router.delete("/images/remove/:id", verifyTokenAndAdmin, async (req, res) => {
     try {
@@ -140,9 +161,8 @@ router.delete("/images/remove/:id", verifyTokenAndAdmin, async (req, res) => {
         }
 
         // Remove the image file from the server
-        const imagePath = `./images/${images[index]}`;
-        fs.unlinkSync(imagePath); // Delete the file from the file system
-
+        const imagePath = `./products/${product._id}/${images[index]}`;
+        await deleteObject(ref(storage, imagePath));
         // Remove the image from the images array in the product document
         product.images.splice(index, 1);
 
@@ -193,8 +213,8 @@ router.delete("/:id", verifyTokenAndAdmin, async (req, res) => {
 
         // Delete images from the server's file system
         await Promise.all(product.images.map(async imageName => {
-            const imagePath = `./public/images/${imageName}`;
-            fs.unlink(imagePath);
+            const imagePath = `./products/${product._id}/${imageName}`;
+            await deleteObject(ref(storage, imagePath));
         }));
 
         // Remove the product from the products array in all the orders
@@ -227,12 +247,12 @@ router.get("/find/:id", async (req, res) => {
         }
 
         // Prepend the image path with the server URL to serve it
-        const images = product.images.map(image => `${req.protocol}://${req.get('host')}/images/${image}`);
+        // const images = product.images.map(image => `${req.protocol}://${req.get('host')}/images/${image}`);
 
         // Replace the product's image URLs with local server URLs
-        const productWithImages = { ...product.toObject(), images };
+        // const productWithImages = { ...product.toObject(), images };
 
-        res.status(200).json(productWithImages);
+        res.status(200).json(product);
     } catch (error) {
         res.status(400).json({ Success: false, Message: error.message });
     }
@@ -270,14 +290,7 @@ router.get("/", async (req, res) => {
             products = await Product.find();
         }
 
-        // Modify products to include image URLs
-        const productsWithImages = products.map(product => {
-            // Prepend the image path with the server URL to serve it
-            const images = product.images.map(image => `${req.protocol}://${req.get('host')}/images/${image}`);
-            return { ...product.toObject(), images };
-        });
-
-        res.status(200).json({ Success: true, Products: productsWithImages });
+        res.status(200).json({ Success: true, Products: products });
     } catch (error) {
         res.status(400).send(error.message);
     }
